@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import RewardReveal from '@/components/reward-reveal';
 import { guestHeaders } from '@/client/guest-session';
+import { attemptReasonLabel, gameModeLabel } from '@/domain/game-copy';
 
 type Snapshot = {
   attemptId: string;
@@ -114,7 +115,7 @@ export default function AttemptPage({ params }: { params: Promise<{ attemptId: s
       <p className="eyebrow">REZULTAT</p>
       <h1>{new Intl.NumberFormat('sr-Latn-RS').format(snapshot.result?.reward ?? 0)} RSD</h1>
       <RewardReveal amount={snapshot.result?.reward ?? 0} />
-      <p>{snapshot.result?.reason}</p>
+      <p>{attemptReasonLabel(snapshot.result?.reason)}</p>
       <Link className="button" href="/kviz">Nastavi</Link>
     </section>
   </main>;
@@ -126,7 +127,7 @@ export default function AttemptPage({ params }: { params: Promise<{ attemptId: s
     <Link href="/kviz">← Kviz</Link>
     <div className="gamehead"><span>{snapshot.title}</span><strong className={seconds < 10 ? 'urgent' : ''}>{Math.floor(seconds / 60)}:{String(seconds % 60).padStart(2, '0')}</strong></div>
     <section className="panel">
-      <p className="eyebrow">{mode.replace('_', ' ')}</p>
+      <p className="eyebrow">{gameModeLabel(mode)}</p>
       <h1 className="gameprompt">{snapshot.prompt}</h1>
       <details className="reward-ladder"><summary>Pregled nagrada</summary><ul>{snapshot.rewardLadder.map((step, index) => <li key={`${step.label}-${index}`}><span>{step.label}</span><strong>{new Intl.NumberFormat('sr-Latn-RS').format(step.reward)} RSD</strong></li>)}</ul></details>
       {mode === 'EDGE' && <p>Cilj: {String(config.target)} {String(config.unit ?? '')}</p>}

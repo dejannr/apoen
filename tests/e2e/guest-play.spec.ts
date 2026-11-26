@@ -9,6 +9,7 @@ test('guest progress survives a reload and transfers to a newly registered accou
   await page.getByRole('link', { name: 'Pokreni današnji kviz' }).click();
   await page.getByRole('button', { name: 'Započni izazov' }).first().click();
   await expect(page).toHaveURL(/kviz\/[0-9a-f-]+/);
+  await expect(page.locator('p.eyebrow').filter({ hasText: 'Na ivici' })).toBeVisible();
   expect(await page.evaluate(() => localStorage.getItem('apoen.guest-session.v1'))).toContain('token');
 
   await page.reload();

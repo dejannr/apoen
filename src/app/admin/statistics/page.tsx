@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
+import { gameModeLabel } from '@/domain/game-copy';
 
 type Stats = {
   users: number;
@@ -41,7 +42,7 @@ export default function AdminStatistics() {
       </div>
       <section className="panel"><h2>Rezultati po formatu</h2>
         {stats.byMode.length === 0 ? <p>Još nema pokušaja.</p> : <div className="table-wrap"><table><thead><tr><th>Format</th><th>Pokušaji</th><th>Završeni</th><th>Istekli</th><th>Prosečna nagrada</th></tr></thead>
-          <tbody>{stats.byMode.map((row) => <tr key={row.mode}><td>{row.mode}</td><td>{row.attempts}</td><td>{row.completed}</td><td>{row.timeouts}</td><td>{money.format(Math.round(row.average_reward ?? 0))} RSD</td></tr>)}</tbody></table></div>}
+          <tbody>{stats.byMode.map((row) => <tr key={row.mode}><td>{gameModeLabel(row.mode)}</td><td>{row.attempts}</td><td>{row.completed}</td><td>{row.timeouts}</td><td>{money.format(Math.round(row.average_reward ?? 0))} RSD</td></tr>)}</tbody></table></div>}
       </section>
       <section className="panel"><h2>Raspodela novčanica</h2>
         {stats.denominations.length === 0 ? <p>Još nema osvojenih novčanica.</p> : <div className="table-wrap"><table><thead><tr><th>Apoen</th><th>Broj</th></tr></thead><tbody>{stats.denominations.map((row) => <tr key={row.denomination}><td>{money.format(row.denomination)} RSD</td><td>{row.count}</td></tr>)}</tbody></table></div>}

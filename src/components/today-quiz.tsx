@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ensurePlaySession, guestHeaders } from '@/client/guest-session';
+import { gameModeLabel } from '@/domain/game-copy';
 
 type Challenge = { id: string; position: number; mode: string; category: string; status: string; attemptId: string | null; reward: number | null };
 type Today = { playDate: string; state: string; halves: { half: number; challenges: Challenge[] }[] };
@@ -44,7 +45,7 @@ export default function TodayQuiz() {
     {!data && !error && <p>Učitavanje kviza…</p>}
     {data && data.state === 'UNAVAILABLE' && <p>Današnji kviz još nije objavljen.</p>}
     {data?.halves.map(({ half, challenges }) => <section className="panel" key={half}><h2>{half}. poluvreme</h2><div className="quizgrid">{challenges.map((challenge) => <article className="challenge" key={challenge.id}>
-      <span>{challenge.position}. izazov · {challenge.category}</span><strong>{challenge.mode.replace('_', ' ')}</strong>
+      <span>{challenge.position}. izazov · {challenge.category}</span><strong>{gameModeLabel(challenge.mode)}</strong>
       {challenge.attemptId && challenge.status === 'ACTIVE' ? <Link className="button" href={`/kviz/${challenge.attemptId}`}>Nastavi</Link> : challenge.status !== 'NOT_STARTED' ? <small>Završeno · {challenge.reward ?? 0} RSD</small> : <button className="button" disabled={Boolean(starting)} onClick={() => void start(challenge.id)}>{starting === challenge.id ? 'Pokrećem…' : 'Započni izazov'}</button>}
     </article>)}</div></section>)}
     {data && <p className="muted">{data.playDate} · {data.state === 'COMPLETED' ? 'Današnji kviz završen' : 'Rezultati se obračunavaju na serveru'}</p>}
