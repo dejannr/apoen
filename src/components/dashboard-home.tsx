@@ -17,10 +17,11 @@ export default async function DashboardHome({ user }: { user: { id: string; name
   const next = season?.tiers.find((tier) => tier.thresholdAmount > total);
   const set = season ? await db.dailySet.findFirst({ where: { seasonId: season.id, playDate: new Date(`${today}T00:00:00.000Z`), status: 'PUBLISHED' }, select: { id: true } }) : null;
 
-  return <main>
+  return <>
+    <main>
     <header className="top">
       <Link href="/" className="brand">apoen</Link>
-      <nav><Link href="/">Početna</Link><Link href="/kviz">Kviz</Link>{user && <><Link href="/banka">Banka</Link><Link href="/rang-lista">Rang-lista</Link><Link href="/kolekcija">Kolekcija</Link><Link href="/profil">Profil</Link>{user.role === 'ADMIN' && <Link href="/admin">Admin</Link>}</>}{!user && <Link href="/pravila">Pravila igre</Link>}</nav>
+      {user && <nav aria-label="Glavna navigacija"><Link href="/banka">Banka</Link><Link href="/rang-lista">Rang-lista</Link><Link href="/kolekcija">Kolekcija</Link><Link href="/profil">Profil</Link>{user.role === 'ADMIN' && <Link href="/admin">Admin</Link>}</nav>}
       {user ? <><span>{user.name}</span><SignOut /></> : <div className="controls"><Link href="/register">Registracija</Link><Link href="/login">Prijava</Link></div>}
     </header>
     <p className="eyebrow">{today} · DNEVNI KVIZ</p>
@@ -33,5 +34,7 @@ export default async function DashboardHome({ user }: { user: { id: string; name
     </div>
     <DashboardQuizCard available={Boolean(set)} authenticated={Boolean(user)} />
     {user && next && <p className="muted">Do nivoa „{next.tierName}” nedostaje {money(next.thresholdAmount - total)} RSD.</p>}
-  </main>;
+    </main>
+    <footer className="site-footer"><Link href="/pravila">Pravila igre</Link></footer>
+  </>;
 }
