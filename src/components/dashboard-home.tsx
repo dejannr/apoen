@@ -31,8 +31,6 @@ export default async function DashboardHome({ user }: { user: { id: string; name
       </details> : <div className="controls"><Link href="/register">Registracija</Link><Link href="/login">Prijava</Link></div>}
     </header>
     <p className="eyebrow">{today} · DNEVNI KVIZ</p>
-    <h1>Danas ideš do miliona.</h1>
-    <p>Osam izazova u dva poluvremena. Igraj bez naloga i sačuvaj napredak u ovom pregledaču do sutra.</p>
     <DashboardQuizCard available={Boolean(set)} authenticated={Boolean(user)} />
     <div className="cards">
       <Link className="home-card" href="/banka"><p>MOJA BANKA</p><strong>{user ? `${money(total)} RSD` : 'Otvori banku'}</strong><small>{user ? 'virtuelni dinari' : 'potrebna je prijava'}</small></Link>
