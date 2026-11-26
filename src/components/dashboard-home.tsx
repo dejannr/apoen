@@ -21,12 +21,10 @@ export default async function DashboardHome({ user }: { user: { id: string; name
     <main>
     <header className="top">
       <Link href="/" className="brand">apoen</Link>
-      {user && <nav aria-label="Glavna navigacija"><Link href="/rang-lista">Rang-lista</Link>{user.role === 'ADMIN' && <Link href="/admin">Admin</Link>}</nav>}
+      {user?.role === 'ADMIN' && <nav aria-label="Glavna navigacija"><Link href="/admin">Admin</Link></nav>}
       {user ? <details className="account-menu">
         <summary>{user.name || 'Moj nalog'}</summary>
         <div className="account-dropdown">
-          <Link href="/kolekcija">Kolekcija</Link>
-          <Link href="/banka">Banka</Link>
           <Link href="/profil">Profil</Link>
           <SignOut />
         </div>
@@ -36,9 +34,9 @@ export default async function DashboardHome({ user }: { user: { id: string; name
     <h1>Danas ideš do miliona.</h1>
     <p>Osam izazova u dva poluvremena. Igraj bez naloga i sačuvaj napredak u ovom pregledaču do sutra.</p>
     <div className="cards">
-      <article><p>{user ? 'MOJA BANKA' : 'VIRTUELNA NAGRADA'}</p><strong>{user ? `${money(total)} RSD` : 'Do 1.000.000 RSD'}</strong><small>{user ? 'virtuelni dinari' : 'bez uloga i isplata'}</small></article>
-      <article><p>MESEČNI PLASMAN</p><strong>{rank ? `#${rank}` : '—'}</strong><small>{user && season ? 'u tekućoj sezoni' : 'napravi nalog da pratiš plasman'}</small></article>
-      <article><p>KOLEKCIONARSKI PREDMET</p><strong>{user ? current?.tierName ?? '—' : season?.collectibleTheme ?? '—'}</strong><small>{season?.collectibleTheme ?? 'Predmet će se pojaviti kada sezona bude objavljena'}</small></article>
+      <Link className="home-card" href="/banka"><p>MOJA BANKA</p><strong>{user ? `${money(total)} RSD` : 'Otvori banku'}</strong><small>{user ? 'virtuelni dinari' : 'potrebna je prijava'}</small></Link>
+      <Link className="home-card" href="/kolekcija"><p>MOJA KOLEKCIJA</p><strong>{user ? current?.tierName ?? 'Još nema predmeta' : 'Otvori kolekciju'}</strong><small>{user ? season?.collectibleTheme ?? 'Osvojeni predmeti' : 'potrebna je prijava'}</small></Link>
+      <Link className="home-card" href="/rang-lista"><p>RANG-LISTA</p><strong>{rank ? `#${rank}` : 'Pogledaj plasman'}</strong><small>{user && season ? 'tvoj mesečni plasman' : 'mesečni plasman igrača'}</small></Link>
     </div>
     <DashboardQuizCard available={Boolean(set)} authenticated={Boolean(user)} />
     {user && next && <p className="muted">Do nivoa „{next.tierName}” nedostaje {money(next.thresholdAmount - total)} RSD.</p>}
