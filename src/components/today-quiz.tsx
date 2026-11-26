@@ -17,6 +17,7 @@ export default function TodayQuiz() {
   const [challenge, setChallenge] = useState<Challenge>();
   const [playDate, setPlayDate] = useState('');
   const [halfResults, setHalfResults] = useState<Challenge[]>([]);
+  const [finalResults, setFinalResults] = useState<Challenge[]>([]);
   const [nextChallenge, setNextChallenge] = useState<Challenge>();
   const [introSeconds, setIntroSeconds] = useState(3);
   const [error, setError] = useState('');
@@ -78,7 +79,12 @@ export default function TodayQuiz() {
           setPhase('halftime');
           return;
         }
-        if (!next || result.state === 'COMPLETED') { setPhase('complete'); return; }
+        if (result.state === 'COMPLETED') {
+          setFinalResults(challenges);
+          setPhase('complete');
+          return;
+        }
+        if (!next) { setFinalResults(challenges); setPhase('complete'); return; }
         beginIntro(next);
       } catch (reason) {
         if (!cancelled) { setError((reason as Error).message); setPhase('error'); }
@@ -93,6 +99,18 @@ export default function TodayQuiz() {
   }, [beginIntro, router]);
 
   const halfTotal = halfResults.reduce((sum, result) => sum + (result.reward ?? 0), 0);
+  const firstHalfResults = finalResults.filter((result) => result.position <= 4);
+  const secondHalfResults = finalResults.filter((result) => result.position > 4);
+  const firstHalfTotal = firstHalfResults.reduce((sum, result) => sum + (result.reward ?? 0), 0);
+  const secondHalfTotal = secondHalfResults.reduce((sum, result) => sum + (result.reward ?? 0), 0);
+  const finalTotal = finalResults.reduce((sum, result) => sum + (result.reward ?? 0), 0);
+
+  function resultRows(results: Challenge[]) {
+    return results.map((result) => <article className="halftime-row" key={result.id}>
+      <span>{result.position}. pitanje · {result.title}</span>
+      <strong>{money.format(result.reward ?? 0)} RSD</strong>
+    </article>);
+  }
 
   return <main className="quiz-flow">
     <Link href="/">← Početna</Link>
@@ -117,7 +135,15 @@ export default function TodayQuiz() {
     </section>}
     {phase === 'error' && <section className="panel"><h1>Kviz nije mogao da se pokrene</h1><p role="alert">{error}</p><button className="button" onClick={() => window.location.reload()}>Pokušaj ponovo</button></section>}
     {phase === 'unavailable' && <section className="panel"><h1>Današnji kviz još nije dostupan</h1><p>Novi dnevni set još nije objavljen.</p></section>}
-    {phase === 'complete' && <section className="panel"><p className="eyebrow">{playDate}</p><h1>Današnji kviz je završen!</h1><p>Odgovorio/la si na sva današnja pitanja. Novi kviz stiže sutra.</p><Link className="button" href="/">Povratak na početnu</Link></section>}
+    {phase === 'complete' && <section className="panel halftime-card">
+      <p className="eyebrow">{playDate} · KONAČNI REZULTAT</p>
+      <h1>Rezultati današnjeg kviza</h1>
+      <div className="halftime-results"><h2>Prvo poluvreme</h2>{resultRows(firstHalfResults)}<div className="halftime-total"><span>Zbir prvog poluvremena</span><strong>{money.format(firstHalfTotal)} RSD</strong></div></div>
+      <div className="halftime-results"><h2>Drugo poluvreme</h2>{resultRows(secondHalfResults)}<div className="halftime-total"><span>Zbir drugog poluvremena</span><strong>{money.format(secondHalfTotal)} RSD</strong></div></div>
+      <div className="halftime-total final-total"><span>Ukupno osvojeno</span><strong>{money.format(finalTotal)} RSD</strong></div>
+      <p>Odgovorio/la si na svih 8 pitanja. Novi kviz stiže sutra.</p>
+      <Link className="button" href="/">Povratak na početnu</Link>
+    </section>}
     <p className="muted">Gostujući napredak čuva se u ovom pregledaču do sutra. Nakon prijave ili registracije možeš ga preneti na nalog.</p>
   </main>;
 }
