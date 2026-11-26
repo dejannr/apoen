@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import SignOut from '@/components/sign-out';
+import DashboardQuizCard from '@/components/dashboard-quiz-card';
 import { db } from '@/server/db';
 import { monthBounds, belgradeDate } from '@/server/calendar';
 
@@ -30,11 +31,7 @@ export default async function DashboardHome({ user }: { user: { id: string; name
       <article><p>MESEČNI PLASMAN</p><strong>{rank ? `#${rank}` : '—'}</strong><small>{user && season ? 'u tekućoj sezoni' : 'napravi nalog da pratiš plasman'}</small></article>
       <article><p>KOLEKCIONARSKI PREDMET</p><strong>{user ? current?.tierName ?? '—' : season?.collectibleTheme ?? '—'}</strong><small>{season?.collectibleTheme ?? 'Predmet će se pojaviti kada sezona bude objavljena'}</small></article>
     </div>
-    <section className="panel">
-      <h2>{set ? 'Današnji kviz je spreman' : 'Današnji kviz još nije dostupan'}</h2>
-      <p>{set ? 'Odigraj osam izazova. Tvoj gostujući napredak čuva se do sutra i možeš ga preneti na nalog.' : 'Novi dnevni set još nije objavljen.'}</p>
-      {set && <Link className="button" href="/kviz">Pokreni današnji kviz →</Link>}
-    </section>
+    <DashboardQuizCard available={Boolean(set)} authenticated={Boolean(user)} />
     {user && next && <p className="muted">Do nivoa „{next.tierName}” nedostaje {money(next.thresholdAmount - total)} RSD.</p>}
   </main>;
 }
