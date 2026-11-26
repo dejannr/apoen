@@ -21,8 +21,16 @@ export default async function DashboardHome({ user }: { user: { id: string; name
     <main>
     <header className="top">
       <Link href="/" className="brand">apoen</Link>
-      {user && <nav aria-label="Glavna navigacija"><Link href="/banka">Banka</Link><Link href="/rang-lista">Rang-lista</Link><Link href="/kolekcija">Kolekcija</Link><Link href="/profil">Profil</Link>{user.role === 'ADMIN' && <Link href="/admin">Admin</Link>}</nav>}
-      {user ? <><span>{user.name}</span><SignOut /></> : <div className="controls"><Link href="/register">Registracija</Link><Link href="/login">Prijava</Link></div>}
+      {user && <nav aria-label="Glavna navigacija"><Link href="/rang-lista">Rang-lista</Link>{user.role === 'ADMIN' && <Link href="/admin">Admin</Link>}</nav>}
+      {user ? <details className="account-menu">
+        <summary>{user.name || 'Moj nalog'}</summary>
+        <div className="account-dropdown">
+          <Link href="/kolekcija">Kolekcija</Link>
+          <Link href="/banka">Banka</Link>
+          <Link href="/profil">Profil</Link>
+          <SignOut />
+        </div>
+      </details> : <div className="controls"><Link href="/register">Registracija</Link><Link href="/login">Prijava</Link></div>}
     </header>
     <p className="eyebrow">{today} · DNEVNI KVIZ</p>
     <h1>Danas ideš do miliona.</h1>
