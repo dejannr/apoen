@@ -16,7 +16,7 @@ async function loadToday(userId: string, day: string, year: number, month: numbe
           challenges: {
             orderBy: { position: 'asc' },
             select: {
-              id: true, position: true, half: true, mode: true,
+              id: true, position: true, half: true, mode: true, title: true,
               category: { select: { name: true } },
               attempts: { where: { userId }, select: { id: true, status: true, finalReward: true, finishedAt: true } },
             },
@@ -71,6 +71,7 @@ async function getTodayResponse(request?: Request) {
       challenges: challenges.filter((challenge) => challenge.half === half).map((challenge) => ({
         id: challenge.id,
         position: challenge.position,
+        title: challenge.title,
         mode: challenge.mode,
         category: challenge.category.name,
         status: challenge.attempts[0]?.status ?? 'NOT_STARTED',

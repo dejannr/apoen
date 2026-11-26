@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import RewardReveal from '@/components/reward-reveal';
 import { guestHeaders } from '@/client/guest-session';
 import { attemptReasonLabel, gameModeLabel } from '@/domain/game-copy';
@@ -25,12 +26,15 @@ type Snapshot = {
 };
 
 export default function AttemptPage({ params }: { params: Promise<{ attemptId: string }> }) {
+  const router = useRouter();
   const [id, setId] = useState('');
   const [snapshot, setSnapshot] = useState<Snapshot>();
   const [picked, setPicked] = useState<string[]>([]);
   const [seconds, setSeconds] = useState(0);
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
+  const [leaveWarning, setLeaveWarning] = useState(false);
+  const [leaveDestination, setLeaveDestination] = useState<string | null>(null);
   const deadline = useRef(0);
   const timeoutRequested = useRef(false);
 
@@ -75,8 +79,25 @@ export default function AttemptPage({ params }: { params: Promise<{ attemptId: s
     };
   }, [attemptId, expiresAt, serverNow, attemptStatus, id]);
 
-  async function act(kind: string, payload: Record<string, unknown> = {}) {
-    if (!snapshot || busy) return;
+  useEffect(() => {
+    if (!id || snapshot?.status !== 'ACTIVE') return;
+    const attemptUrl = window.location.href;
+    const guardState = { ...(window.history.state ?? {}), apoenQuizGuard: id };
+    window.history.pushState(guardState, '', attemptUrl);
+    const guardBack = (event: PopStateEvent) => {
+      event.stopImmediatePropagation();
+      const poppedUrl = new URL(window.location.href);
+      const destination = poppedUrl.origin === window.location.origin ? `${poppedUrl.pathname}${poppedUrl.search}${poppedUrl.hash}` : '/';
+      window.history.pushState(guardState, '', attemptUrl);
+      setLeaveDestination(destination);
+      setLeaveWarning(true);
+    };
+    window.addEventListener('popstate', guardBack, true);
+    return () => window.removeEventListener('popstate', guardBack, true);
+  }, [id, snapshot?.status]);
+
+  async function act(kind: string, payload: Record<string, unknown> = {}): Promise<boolean> {
+    if (!snapshot || busy) return false;
     setBusy(true);
     try {
       const response = await fetch(`/api/attempts/${id}/action`, {
@@ -91,7 +112,7 @@ export default function AttemptPage({ params }: { params: Promise<{ attemptId: s
           const fresh = await fetch(`/api/attempts/${id}`, { headers: guestHeaders(), cache: 'no-store' }).then((result) => result.json());
           setSnapshot(fresh);
         }
-        return;
+        return false;
       }
       if (data.status === 'ACTIVE') {
         const fresh = await fetch(`/api/attempts/${id}`, { headers: guestHeaders(), cache: 'no-store' }).then((result) => result.json());
@@ -101,11 +122,21 @@ export default function AttemptPage({ params }: { params: Promise<{ attemptId: s
         setSnapshot({ ...snapshot, ...data, options: snapshot.options });
       }
       setMessage('');
+      return true;
     } catch {
       setMessage('Veza je prekinuta. Tajmer se nastavlja; proveri stanje pre ponovnog slanja.');
+      return false;
     } finally {
       setBusy(false);
     }
+  }
+
+  async function confirmLeave() {
+    const destination = leaveDestination;
+    setLeaveWarning(false);
+    setLeaveDestination(null);
+    const abandoned = await act('ABANDON');
+    if (abandoned && destination) router.replace(destination);
   }
 
   if (!snapshot) return <main>Učitavanje izazova…</main>;
@@ -123,7 +154,7 @@ export default function AttemptPage({ params }: { params: Promise<{ attemptId: s
   const config = snapshot.publicConfig;
   const displayedOptions = snapshot.options.filter((option) => mode !== 'ORDER' || !snapshot.acceptedOptionIds.includes(option.id));
   return <main>
-    <Link href="/">← Početna</Link>
+    <Link href="/" onClick={(event) => { event.preventDefault(); setLeaveDestination('/'); setLeaveWarning(true); }}>← Početna</Link>
     <div className="gamehead"><span>{snapshot.title}</span><strong className={seconds < 10 ? 'urgent' : ''}>{Math.floor(seconds / 60)}:{String(seconds % 60).padStart(2, '0')}</strong></div>
     <section className="panel">
       <p className="eyebrow">{gameModeLabel(mode)}</p>
@@ -141,8 +172,13 @@ export default function AttemptPage({ params }: { params: Promise<{ attemptId: s
       {mode === 'EDGE' && <p>Izabrano {picked.length} / {String(config.pickCount)}</p>}
       {(mode === 'EDGE' || mode === 'CONFIDENCE') && <button className="button" disabled={busy || picked.length === 0} onClick={() => void act('SUBMIT_SELECTION', { optionIds: picked })}>Potvrdi odgovor</button>}
       {(mode === 'ORDER' || mode === 'HIGH_LOW') && <div className="controls"><span>{snapshot.step} tačnih · potencijalno {new Intl.NumberFormat('sr-Latn-RS').format(snapshot.potentialReward)} RSD</span><button disabled={busy || !snapshot.canCashOut} onClick={() => void act('CASH_OUT')}>Uzmi novac</button></div>}
-      <button className="quiet" disabled={busy} onClick={() => void act('ABANDON')}>Odustani</button>
+      <button className="quiet" disabled={busy} onClick={() => { setLeaveDestination(null); setLeaveWarning(true); }}>Odustani</button>
       {message && <p role="alert">{message}</p>}
     </section>
+    {leaveWarning && <div className="leave-backdrop"><section className="leave-dialog" role="dialog" aria-modal="true" aria-labelledby="leave-title">
+      <h2 id="leave-title">Napusti pitanje?</h2>
+      <p>Ne možeš da se vratiš na ovo pitanje. Biće preskočeno bez poena.</p>
+      <div className="controls"><button className="button secondary" disabled={busy} onClick={() => { setLeaveWarning(false); setLeaveDestination(null); }}>Ostani na pitanju</button><button className="button" disabled={busy} onClick={() => void confirmLeave()}>Napusti pitanje</button></div>
+    </section></div>}
   </main>;
 }
