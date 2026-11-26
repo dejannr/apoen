@@ -1,0 +1,365 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider          = "postgresql"
+  url               = env("DATABASE_URL")
+  shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
+}
+
+enum UserRole {
+  PLAYER
+  ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  DISABLED
+}
+
+enum SeasonStatus {
+  DRAFT
+  PUBLISHED
+  CLOSED
+}
+
+enum SetStatus {
+  DRAFT
+  PUBLISHED
+  CANCELLED
+}
+
+enum Mode {
+  EDGE
+  CONFIDENCE
+  ORDER
+  HIGH_LOW
+}
+
+enum AttemptStatus {
+  ACTIVE
+  COMPLETED
+  FAILED
+  EXPIRED
+  ABANDONED
+}
+
+enum EndReason {
+  SUBMITTED
+  WRONG
+  CASHED_OUT
+  MAX_STEPS
+  TIMEOUT
+  ABANDONED
+}
+
+enum ActionKind {
+  SUBMIT_SELECTION
+  PICK_NEXT
+  COMPARE
+  CASH_OUT
+  ABANDON
+  TIMEOUT
+}
+
+model User {
+  id             String               @id @default(uuid()) @db.Uuid
+  email          String               @unique
+  nickname       String
+  nicknameKey    String               @unique @map("nickname_key")
+  passwordHash   String               @map("password_hash")
+  role           UserRole             @default(PLAYER)
+  status         UserStatus           @default(ACTIVE)
+  sessionVersion Int                  @default(0) @map("session_version")
+  createdAt      DateTime             @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt      DateTime             @updatedAt @map("updated_at") @db.Timestamptz
+  lastLoginAt    DateTime?            @map("last_login_at") @db.Timestamptz
+  resetTokens    PasswordResetToken[]
+  attempts       Attempt[]
+  totals         SeasonTotal[]
+  collectibles   UserCollectible[]
+  banknotes      Banknote[]
+  seasons        Season[]
+  sets           DailySet[]
+  assets         MediaAsset[]
+  audit          AdminAudit[]
+
+  @@map("users")
+}
+
+model PasswordResetToken {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  tokenHash String    @unique @map("token_hash")
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  expiresAt DateTime  @map("expires_at") @db.Timestamptz
+  usedAt    DateTime? @map("used_at") @db.Timestamptz
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+  @@map("password_reset_tokens")
+}
+
+model RateLimit {
+  scope       String
+  subjectKey  String   @map("subject_key")
+  windowStart DateTime @map("window_start") @db.Timestamptz
+  count       Int
+  expiresAt   DateTime @map("expires_at") @db.Timestamptz
+
+  @@id([scope, subjectKey, windowStart])
+  @@index([expiresAt])
+  @@map("rate_limits")
+}
+
+model Season {
+  id               String            @id @default(uuid()) @db.Uuid
+  year             Int
+  month            Int
+  startsAt         DateTime          @map("starts_at") @db.Timestamptz
+  endsAt           DateTime          @map("ends_at") @db.Timestamptz
+  status           SeasonStatus      @default(DRAFT)
+  collectibleTheme String            @map("collectible_theme")
+  createdBy        String            @map("created_by") @db.Uuid
+  createdAt        DateTime          @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt        DateTime          @updatedAt @map("updated_at") @db.Timestamptz
+  publishedAt      DateTime?         @map("published_at") @db.Timestamptz
+  closedAt         DateTime?         @map("closed_at") @db.Timestamptz
+  creator          User              @relation(fields: [createdBy], references: [id], onDelete: Restrict)
+  tiers            CollectibleTier[]
+  sets             DailySet[]
+  totals           SeasonTotal[]
+  collectibles     UserCollectible[]
+  banknotes        Banknote[]
+
+  @@unique([year, month])
+  @@map("seasons")
+}
+
+model MediaAsset {
+  id        String            @id @default(uuid()) @db.Uuid
+  sha256    String            @unique
+  mimeType  String            @map("mime_type")
+  bytes     Bytes
+  byteSize  Int               @map("byte_size")
+  widthPx   Int               @map("width_px")
+  heightPx  Int               @map("height_px")
+  createdBy String            @map("created_by") @db.Uuid
+  createdAt DateTime          @default(now()) @map("created_at") @db.Timestamptz
+  creator   User              @relation(fields: [createdBy], references: [id], onDelete: Restrict)
+  tiers     CollectibleTier[]
+
+  @@map("media_assets")
+}
+
+model CollectibleTier {
+  id              String            @id @default(uuid()) @db.Uuid
+  seasonId        String            @map("season_id") @db.Uuid
+  tierNo          Int               @map("tier_no")
+  thresholdAmount Int               @map("threshold_amount")
+  tierName        String            @map("tier_name")
+  description     String
+  assetId         String            @map("asset_id") @db.Uuid
+  assetAlt        String            @map("asset_alt")
+  createdAt       DateTime          @default(now()) @map("created_at") @db.Timestamptz
+  season          Season            @relation(fields: [seasonId], references: [id], onDelete: Restrict)
+  asset           MediaAsset        @relation(fields: [assetId], references: [id], onDelete: Restrict)
+  collectibles    UserCollectible[]
+
+  @@unique([seasonId, tierNo])
+  @@unique([seasonId, thresholdAmount])
+  @@unique([id, seasonId])
+  @@map("collectible_tiers")
+}
+
+model DailySet {
+  id          String      @id @default(uuid()) @db.Uuid
+  seasonId    String      @map("season_id") @db.Uuid
+  playDate    DateTime    @unique @map("play_date") @db.Date
+  status      SetStatus   @default(DRAFT)
+  createdBy   String      @map("created_by") @db.Uuid
+  createdAt   DateTime    @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime    @updatedAt @map("updated_at") @db.Timestamptz
+  publishedAt DateTime?   @map("published_at") @db.Timestamptz
+  creator     User        @relation(fields: [createdBy], references: [id], onDelete: Restrict)
+  season      Season      @relation(fields: [seasonId], references: [id], onDelete: Restrict)
+  challenges  Challenge[]
+
+  @@unique([id, seasonId])
+  @@index([seasonId, playDate])
+  @@map("daily_sets")
+}
+
+model Category {
+  id         String      @id @default(uuid()) @db.Uuid
+  slug       String      @unique
+  name       String
+  isActive   Boolean     @default(true) @map("is_active")
+  createdAt  DateTime    @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt  DateTime    @updatedAt @map("updated_at") @db.Timestamptz
+  challenges Challenge[]
+
+  @@map("categories")
+}
+
+model Challenge {
+  id            String            @id @default(uuid()) @db.Uuid
+  dailySetId    String            @map("daily_set_id") @db.Uuid
+  seasonId      String            @map("season_id") @db.Uuid
+  position      Int
+  half          Int
+  mode          Mode
+  categoryId    String            @map("category_id") @db.Uuid
+  title         String
+  prompt        String
+  publicConfig  Json              @map("public_config")
+  rewardRules   Json              @map("reward_rules")
+  schemaVersion Int               @default(1) @map("schema_version")
+  timeLimitSec  Int               @map("time_limit_sec")
+  explanation   String
+  sourceRefs    Json              @map("source_refs")
+  createdAt     DateTime          @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt     DateTime          @updatedAt @map("updated_at") @db.Timestamptz
+  dailySet      DailySet          @relation(fields: [dailySetId, seasonId], references: [id, seasonId], onDelete: Restrict)
+  category      Category          @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  options       ChallengeOption[]
+  attempts      Attempt[]
+
+  @@unique([dailySetId, position])
+  @@unique([id, seasonId])
+  @@map("challenges")
+}
+
+model ChallengeOption {
+  id           String    @id @default(uuid()) @db.Uuid
+  challengeId  String    @map("challenge_id") @db.Uuid
+  label        String
+  sortOrder    Int       @map("sort_order")
+  numericValue BigInt?   @map("numeric_value")
+  correctFlag  Boolean?  @map("correct_flag")
+  orderRank    Int?      @map("order_rank")
+  explanation  String?
+  challenge    Challenge @relation(fields: [challengeId], references: [id], onDelete: Restrict)
+
+  @@unique([challengeId, sortOrder])
+  @@unique([challengeId, orderRank])
+  @@map("challenge_options")
+}
+
+model Attempt {
+  id           String          @id @default(uuid()) @db.Uuid
+  userId       String          @map("user_id") @db.Uuid
+  challengeId  String          @map("challenge_id") @db.Uuid
+  seasonId     String          @map("season_id") @db.Uuid
+  status       AttemptStatus   @default(ACTIVE)
+  startedAt    DateTime        @map("started_at") @db.Timestamptz
+  expiresAt    DateTime        @map("expires_at") @db.Timestamptz
+  finishedAt   DateTime?       @map("finished_at") @db.Timestamptz
+  endReason    EndReason?      @map("end_reason")
+  correctCount Int             @default(0) @map("correct_count")
+  stateJson    Json            @map("state_json")
+  revision     Int             @default(0)
+  finalReward  Int?            @map("final_reward")
+  createdAt    DateTime        @default(now()) @map("created_at") @db.Timestamptz
+  user         User            @relation(fields: [userId], references: [id], onDelete: Restrict)
+  challenge    Challenge       @relation(fields: [challengeId, seasonId], references: [id, seasonId], onDelete: Restrict)
+  actions      AttemptAction[]
+  banknote     Banknote?
+
+  @@unique([userId, challengeId])
+  @@unique([id, userId, seasonId])
+  @@index([status, expiresAt])
+  @@map("attempts")
+}
+
+model AttemptAction {
+  id               String     @id @default(uuid()) @db.Uuid
+  attemptId        String     @map("attempt_id") @db.Uuid
+  sequenceNo       Int        @map("sequence_no")
+  requestId        String     @map("request_id") @db.Uuid
+  kind             ActionKind
+  payload          Json
+  requestHash      String     @map("request_hash")
+  responseSnapshot Json       @map("response_snapshot")
+  createdAt        DateTime   @default(now()) @map("created_at") @db.Timestamptz
+  attempt          Attempt    @relation(fields: [attemptId], references: [id], onDelete: Restrict)
+
+  @@unique([attemptId, sequenceNo])
+  @@unique([attemptId, requestId])
+  @@map("attempt_actions")
+}
+
+model Banknote {
+  id           String   @id @default(uuid()) @db.Uuid
+  attemptId    String   @unique @map("attempt_id") @db.Uuid
+  userId       String   @map("user_id") @db.Uuid
+  seasonId     String   @map("season_id") @db.Uuid
+  denomination Int
+  earnedAt     DateTime @map("earned_at") @db.Timestamptz
+  attempt      Attempt  @relation(fields: [attemptId, userId, seasonId], references: [id, userId, seasonId], onDelete: Restrict)
+  user         User     @relation(fields: [userId], references: [id], onDelete: Restrict)
+  season       Season   @relation(fields: [seasonId], references: [id], onDelete: Restrict)
+
+  @@unique([attemptId, userId, seasonId])
+  @@index([userId, seasonId, denomination])
+  @@map("banknotes")
+}
+
+model SeasonTotal {
+  userId         String   @map("user_id") @db.Uuid
+  seasonId       String   @map("season_id") @db.Uuid
+  totalAmount    Int      @default(0) @map("total_amount")
+  completedCount Int      @default(0) @map("completed_count")
+  finalRank      Int?     @map("final_rank")
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  user           User     @relation(fields: [userId], references: [id], onDelete: Restrict)
+  season         Season   @relation(fields: [seasonId], references: [id], onDelete: Restrict)
+
+  @@id([userId, seasonId])
+  @@index([seasonId, totalAmount])
+  @@map("season_totals")
+}
+
+model UserCollectible {
+  userId      String          @map("user_id") @db.Uuid
+  seasonId    String          @map("season_id") @db.Uuid
+  tierId      String          @map("tier_id") @db.Uuid
+  awardedAt   DateTime        @map("awarded_at") @db.Timestamptz
+  finalAmount Int             @map("final_amount")
+  finalRank   Int             @map("final_rank")
+  user        User            @relation(fields: [userId], references: [id], onDelete: Restrict)
+  season      Season          @relation(fields: [seasonId], references: [id], onDelete: Restrict)
+  tier        CollectibleTier @relation(fields: [tierId, seasonId], references: [id, seasonId], onDelete: Restrict)
+
+  @@id([userId, seasonId])
+  @@map("user_collectibles")
+}
+
+model AdminAudit {
+  id         String   @id @default(uuid()) @db.Uuid
+  actorId    String   @map("actor_id") @db.Uuid
+  action     String
+  entityType String   @map("entity_type")
+  entityId   String   @map("entity_id") @db.Uuid
+  details    Json
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz
+  actor      User     @relation(fields: [actorId], references: [id], onDelete: Restrict)
+
+  @@index([entityType, entityId, createdAt])
+  @@map("admin_audit")
+}
+
+model JobRun {
+  id         String    @id @default(uuid()) @db.Uuid
+  jobType    String    @map("job_type")
+  jobKey     String    @map("job_key")
+  status     String
+  startedAt  DateTime  @map("started_at") @db.Timestamptz
+  finishedAt DateTime? @map("finished_at") @db.Timestamptz
+  details    Json
+
+  @@unique([jobType, jobKey])
+  @@map("job_runs")
+}

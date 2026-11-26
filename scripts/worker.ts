@@ -1,0 +1,2 @@
+import'dotenv/config';import{PrismaClient}from'@prisma/client';import{closeDueSeasons,expireDueAttempts}from'../src/server/jobs';
+const db=new PrismaClient();async function main(){console.log('apoen worker running');for(;;){await expireDueAttempts(db);await closeDueSeasons(db);await new Promise(r=>setTimeout(r,1000))}}main().catch(e=>{console.error(e);process.exitCode=1}).finally(()=>db.$disconnect());

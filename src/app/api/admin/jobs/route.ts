@@ -1,0 +1,2 @@
+import{NextResponse}from'next/server';import{db}from'@/server/db';import{adminIdentity}from'@/server/admin';
+export async function GET(){const a=await adminIdentity();if('error'in a)return NextResponse.json({error:a.error},{status:a.error==='UNAUTHENTICATED'?401:403});return NextResponse.json(await db.jobRun.findMany({orderBy:{startedAt:'desc'},take:50}),{headers:{'Cache-Control':'private, no-store'}})}

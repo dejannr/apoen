@@ -1,0 +1,2 @@
+import{NextResponse}from'next/server';import{db}from'@/server/db';import{adminIdentity}from'@/server/admin';
+export async function GET(req:Request){const a=await adminIdentity();if('error'in a)return NextResponse.json({error:a.error},{status:a.error==='UNAUTHENTICATED'?401:403});const p=new URL(req.url).searchParams,entity=p.get('entity')??undefined;return NextResponse.json(await db.adminAudit.findMany({where:entity?{entityType:entity}:undefined,include:{actor:{select:{nickname:true}}},orderBy:{createdAt:'desc'},take:100}),{headers:{'Cache-Control':'private, no-store'}})}

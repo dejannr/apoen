@@ -1,0 +1,2 @@
+export function sameOrigin(request:Request):boolean{const origin=request.headers.get('origin');if(!origin)return false;try{return new URL(origin).origin===new URL(process.env.APP_ORIGIN??'http://localhost:3000').origin}catch{return false}}
+export function safeError(error:unknown){const code=error instanceof Error?error.message:'';const allowed=new Set(['NOT_FOUND','NOT_AVAILABLE','OUT_OF_ORDER','HALF_LOCKED','IDEMPOTENCY_CONFLICT','REVISION_CONFLICT','INVALID_INPUT','INVALID_ACTION','CONTENT_INVALID','ACCOUNT_INACTIVE']);return allowed.has(code)?code:'INTERNAL'}

@@ -1,0 +1,54 @@
+{
+  "name": "apoen",
+  "version": "1.0.0",
+  "description": "Lokalni MVP dnevne kviz igre",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "db:deploy": "prisma migrate deploy",
+    "db:seed": "prisma db seed",
+    "test:integration": "vitest run tests/integration",
+    "test:e2e": "playwright test",
+    "lint": "eslint src",
+    "worker": "tsx scripts/worker.ts",
+    "content:validate": "tsx scripts/content-cli.ts validate",
+    "content:publish": "tsx scripts/content-cli.ts publish",
+    "content:asset": "tsx scripts/content-cli.ts asset"
+  },
+  "license": "ISC",
+  "dependencies": {
+    "@prisma/client": "6.12.0",
+    "argon2": "0.44.0",
+    "motion": "12.23.26",
+    "next": "16.4.6",
+    "next-auth": "4.24.15",
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
+    "sharp": "^0.35.5",
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.57.0",
+    "@tailwindcss/postcss": "4.3.5",
+    "@types/node": "22.20.7",
+    "@types/react": "19.3.3",
+    "@types/react-dom": "19.3.0",
+    "dotenv": "^16.6.1",
+    "eslint": "9.39.5",
+    "eslint-config-next": "16.4.6",
+    "prisma": "6.12.0",
+    "tailwindcss": "4.3.5",
+    "tsx": "4.20.6",
+    "typescript": "5.9.3",
+    "vitest": "4.1.12"
+  },
+  "private": true,
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  }
+}

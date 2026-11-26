@@ -1,0 +1,2 @@
+import {getServerSession}from'next-auth';import{NextResponse}from'next/server';import{authOptions}from'@/server/auth';import{attemptSnapshot}from'@/server/game';
+export async function GET(_req:Request,{params}:{params:Promise<{id:string}>}){const s=await getServerSession(authOptions);if(!s?.user)return NextResponse.json({error:'UNAUTHENTICATED'},{status:401});try{return NextResponse.json(await attemptSnapshot((s.user as{id:string}).id,(await params).id),{headers:{'Cache-Control':'private, no-store'}})}catch{return NextResponse.json({error:'NOT_FOUND'},{status:404})}}

@@ -1,0 +1,1 @@
+import Link from'next/link';export default function Offline(){return <main><h1>Nema veze sa serverom</h1><p>Kviz zahteva vezu. Rezultat i tajmer čuva server.</p><Link href="/">Pokušaj ponovo</Link></main>}
