@@ -2,6 +2,7 @@
 
 const STORAGE_KEY = 'apoen.guest-session.v1';
 type GuestSession = { token: string; playDate: string };
+let sessionRequest: Promise<{ authenticated: boolean; token?: string; playDate?: string }> | null = null;
 
 export function currentGuestToken() {
   try {
@@ -12,16 +13,20 @@ export function currentGuestToken() {
   } catch { return null; }
 }
 
-export async function ensurePlaySession(): Promise<{ authenticated: boolean; token?: string; playDate?: string }> {
-  const response = await fetch('/api/guest/session', {
-    method: 'POST', headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ token: currentGuestToken() }), cache: 'no-store',
-  });
-  if (!response.ok) throw new Error('Dnevni kviz trenutno nije dostupan.');
-  const data = await response.json() as { authenticated: boolean; token?: string; playDate?: string; claim?: { status?: string } | null };
-  if (data.authenticated && currentGuestToken() && data.claim?.status !== 'FAILED') localStorage.removeItem(STORAGE_KEY);
-  if (!data.authenticated && data.token && data.playDate) localStorage.setItem(STORAGE_KEY, JSON.stringify({ token: data.token, playDate: data.playDate } satisfies GuestSession));
-  return data;
+export function ensurePlaySession(): Promise<{ authenticated: boolean; token?: string; playDate?: string }> {
+  if (sessionRequest) return sessionRequest;
+  sessionRequest = (async () => {
+    const response = await fetch('/api/guest/session', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ token: currentGuestToken() }), cache: 'no-store',
+    });
+    if (!response.ok) throw new Error('Dnevni kviz trenutno nije dostupan.');
+    const data = await response.json() as { authenticated: boolean; token?: string; playDate?: string; claim?: { status?: string } | null };
+    if (data.authenticated && currentGuestToken() && data.claim?.status !== 'FAILED') localStorage.removeItem(STORAGE_KEY);
+    if (!data.authenticated && data.token && data.playDate) localStorage.setItem(STORAGE_KEY, JSON.stringify({ token: data.token, playDate: data.playDate } satisfies GuestSession));
+    return data;
+  })().finally(() => { sessionRequest = null; });
+  return sessionRequest;
 }
 
 export function guestHeaders(): HeadersInit {

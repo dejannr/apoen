@@ -110,13 +110,12 @@ export default function AttemptPage({ params }: { params: Promise<{ attemptId: s
 
   if (!snapshot) return <main>Učitavanje izazova…</main>;
   if (snapshot.status !== 'ACTIVE') return <main>
-    <Link href="/kviz">← Kviz</Link>
     <section className="panel result-card">
       <p className="eyebrow">REZULTAT</p>
       <h1>{new Intl.NumberFormat('sr-Latn-RS').format(snapshot.result?.reward ?? 0)} RSD</h1>
       <RewardReveal amount={snapshot.result?.reward ?? 0} />
       <p>{attemptReasonLabel(snapshot.result?.reason)}</p>
-      <Link className="button" href="/kviz">Nastavi</Link>
+      <Link className="button" href="/kviz">Nastavi na sledeće pitanje →</Link>
     </section>
   </main>;
 

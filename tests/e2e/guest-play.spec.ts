@@ -7,9 +7,9 @@ test('guest progress survives a reload and transfers to a newly registered accou
   await expect(page.getByRole('heading', { name: 'Danas ideš do miliona.' })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Registracija' })).toBeVisible();
   await page.getByRole('link', { name: 'Pokreni današnji kviz' }).click();
-  await page.getByRole('button', { name: 'Započni izazov' }).first().click();
+  await expect(page.getByRole('heading', { name: 'Na ivici' })).toBeVisible();
+  await expect(page.locator('.intro-count')).toHaveText('3');
   await expect(page).toHaveURL(/kviz\/[0-9a-f-]+/);
-  await expect(page.locator('p.eyebrow').filter({ hasText: 'Na ivici' })).toBeVisible();
   expect(await page.evaluate(() => localStorage.getItem('apoen.guest-session.v1'))).toContain('token');
 
   await page.reload();

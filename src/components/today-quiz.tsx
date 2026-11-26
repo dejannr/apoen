@@ -7,47 +7,86 @@ import { ensurePlaySession, guestHeaders } from '@/client/guest-session';
 import { gameModeLabel } from '@/domain/game-copy';
 
 type Challenge = { id: string; position: number; mode: string; category: string; status: string; attemptId: string | null; reward: number | null };
-type Today = { playDate: string; state: string; halves: { half: number; challenges: Challenge[] }[] };
+type Today = { playDate: string; state: string; activeAttemptId: string | null; halves: { half: number; challenges: Challenge[] }[] };
+type Phase = 'loading' | 'intro' | 'starting' | 'error' | 'complete' | 'unavailable';
 
 export default function TodayQuiz() {
   const router = useRouter();
-  const [data, setData] = useState<Today>();
+  const [phase, setPhase] = useState<Phase>('loading');
+  const [challenge, setChallenge] = useState<Challenge>();
+  const [playDate, setPlayDate] = useState('');
+  const [introSeconds, setIntroSeconds] = useState(3);
   const [error, setError] = useState('');
-  const [starting, setStarting] = useState('');
 
-  async function refresh() {
-    await ensurePlaySession();
-    const response = await fetch('/api/game/today', { headers: guestHeaders(), cache: 'no-store' });
-    const result = await response.json();
-    if (!response.ok) throw new Error(result.error === 'UNAUTHENTICATED' ? 'Prijavi se ili osveži stranicu.' : 'Današnji kviz trenutno nije dostupan.');
-    setData(result as Today);
-  }
+  useEffect(() => {
+    let cancelled = false;
+    let timer: number | undefined;
 
-  useEffect(() => { void Promise.resolve().then(refresh).catch((reason: Error) => setError(reason.message)); }, []);
+    async function beginChallenge(challengeId: string) {
+      if (cancelled) return;
+      setPhase('starting');
+      try {
+        await ensurePlaySession();
+        const response = await fetch('/api/attempts/start', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', ...guestHeaders() },
+          body: JSON.stringify({ challengeId }),
+        });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error === 'OUT_OF_ORDER' ? 'Prethodno pitanje još nije završeno.' : result.error === 'HALF_LOCKED' ? 'Nastavi redom kroz prvo poluvreme.' : 'Pitanje trenutno nije moguće pokrenuti.');
+        if (!cancelled) router.replace(`/kviz/${result.attemptId}`);
+      } catch (reason) {
+        if (!cancelled) { setError((reason as Error).message); setPhase('error'); }
+      }
+    }
 
-  async function start(challengeId: string) {
-    setStarting(challengeId); setError('');
-    try {
-      await ensurePlaySession();
-      const response = await fetch('/api/attempts/start', { method: 'POST', headers: { 'content-type': 'application/json', ...guestHeaders() }, body: JSON.stringify({ challengeId }) });
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.error === 'OUT_OF_ORDER' ? 'Prvo završi prethodni izazov.' : result.error === 'HALF_LOCKED' ? 'Prvo završi prvo poluvreme.' : 'Izazov trenutno nije moguće pokrenuti.');
-      router.push(`/kviz/${result.attemptId}`);
-    } catch (reason) { setError((reason as Error).message); await refresh().catch(() => undefined); }
-    finally { setStarting(''); }
-  }
+    async function prepareQuiz() {
+      try {
+        await ensurePlaySession();
+        const response = await fetch('/api/game/today', { headers: guestHeaders(), cache: 'no-store' });
+        const result = await response.json() as Today & { error?: string };
+        if (!response.ok) throw new Error(result.error === 'UNAUTHENTICATED' ? 'Osveži stranicu da nastaviš kviz.' : 'Današnji kviz trenutno nije dostupan.');
+        if (cancelled) return;
+        setPlayDate(result.playDate);
+        if (result.activeAttemptId) { router.replace(`/kviz/${result.activeAttemptId}`); return; }
+        if (result.state === 'UNAVAILABLE') { setPhase('unavailable'); return; }
+        const next = result.halves.flatMap((half) => half.challenges).sort((a, b) => a.position - b.position).find((item) => item.status === 'NOT_STARTED');
+        if (!next || result.state === 'COMPLETED') { setPhase('complete'); return; }
 
-  return <main>
+        setChallenge(next);
+        setIntroSeconds(3);
+        setPhase('intro');
+        let remaining = 3;
+        timer = window.setInterval(() => {
+          remaining -= 1;
+          if (remaining > 0) setIntroSeconds(remaining);
+          else {
+            if (timer !== undefined) window.clearInterval(timer);
+            void beginChallenge(next.id);
+          }
+        }, 1000);
+      } catch (reason) {
+        if (!cancelled) { setError((reason as Error).message); setPhase('error'); }
+      }
+    }
+
+    void prepareQuiz();
+    return () => { cancelled = true; if (timer !== undefined) window.clearInterval(timer); };
+  }, [router]);
+
+  return <main className="quiz-flow">
     <Link href="/">← Početna</Link>
-    <h1>Današnji kviz</h1>
-    <p>Gostujući napredak se čuva u ovom pregledaču do sutra. Nakon prijave ili registracije preneće se na nalog ako danas već nisi igrao/la.</p>
-    {error && <p role="alert">{error}</p>}
-    {!data && !error && <p>Učitavanje kviza…</p>}
-    {data && data.state === 'UNAVAILABLE' && <p>Današnji kviz još nije objavljen.</p>}
-    {data?.halves.map(({ half, challenges }) => <section className="panel" key={half}><h2>{half}. poluvreme</h2><div className="quizgrid">{challenges.map((challenge) => <article className="challenge" key={challenge.id}>
-      <span>{challenge.position}. izazov · {challenge.category}</span><strong>{gameModeLabel(challenge.mode)}</strong>
-      {challenge.attemptId && challenge.status === 'ACTIVE' ? <Link className="button" href={`/kviz/${challenge.attemptId}`}>Nastavi</Link> : challenge.status !== 'NOT_STARTED' ? <small>Završeno · {challenge.reward ?? 0} RSD</small> : <button className="button" disabled={Boolean(starting)} onClick={() => void start(challenge.id)}>{starting === challenge.id ? 'Pokrećem…' : 'Započni izazov'}</button>}
-    </article>)}</div></section>)}
-    {data && <p className="muted">{data.playDate} · {data.state === 'COMPLETED' ? 'Današnji kviz završen' : 'Rezultati se obračunavaju na serveru'}</p>}
+    {phase === 'loading' && <section className="panel"><h1>Pripremamo današnji kviz…</h1></section>}
+    {phase === 'intro' && challenge && <section className="panel quiz-intro" aria-live="polite">
+      <p className="eyebrow">{challenge.position}. PITANJE · {challenge.category}</p>
+      <h1>{gameModeLabel(challenge.mode)}</h1>
+      <p>Pitanje počinje za</p>
+      <strong className="intro-count" aria-label={`${introSeconds} sekunde`}>{introSeconds}</strong>
+    </section>}
+    {phase === 'starting' && <section className="panel"><p className="eyebrow">{challenge && gameModeLabel(challenge.mode)}</p><h1>Spremi se…</h1></section>}
+    {phase === 'error' && <section className="panel"><h1>Kviz nije mogao da se pokrene</h1><p role="alert">{error}</p><button className="button" onClick={() => window.location.reload()}>Pokušaj ponovo</button></section>}
+    {phase === 'unavailable' && <section className="panel"><h1>Današnji kviz još nije dostupan</h1><p>Novi dnevni set još nije objavljen.</p></section>}
+    {phase === 'complete' && <section className="panel"><p className="eyebrow">{playDate}</p><h1>Današnji kviz je završen!</h1><p>Odgovorio/la si na sva današnja pitanja. Novi kviz stiže sutra.</p><Link className="button" href="/">Povratak na početnu</Link></section>}
+    <p className="muted">Gostujući napredak čuva se u ovom pregledaču do sutra. Nakon prijave ili registracije možeš ga preneti na nalog.</p>
   </main>;
 }
