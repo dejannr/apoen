@@ -53,12 +53,13 @@ async function getTodayResponse(request?: Request) {
     const attempt = challenges.find((challenge) => challenge.position === position)?.attempts[0];
     return Boolean(attempt && attempt.status !== 'ACTIVE');
   };
+  const secondHalfStarted = challenges.some((challenge) => challenge.position > 4 && challenge.attempts.length > 0);
   let state = 'UNAVAILABLE';
   if (set && challenges.length === 8) {
     if ([1, 2, 3, 4, 5, 6, 7, 8].every(terminal)) state = 'COMPLETED';
     else if (active && challenges.find((challenge) => challenge.attempts.some((attempt) => attempt.id === active!.id))?.half === 2) state = 'IN_H2';
     else if (active) state = 'IN_H1';
-    else if ([1, 2, 3, 4].every(terminal)) state = 'BREAK';
+    else if ([1, 2, 3, 4].every(terminal)) state = secondHalfStarted ? 'READY_H2' : 'BREAK';
     else state = 'READY_H1';
   }
   return NextResponse.json({
