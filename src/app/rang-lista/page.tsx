@@ -29,7 +29,7 @@ export default function Leaderboard() {
   }, [page]);
 
   return <main>
-    <Link href="/dashboard">← Početna</Link>
+    <Link href="/">← Početna</Link>
     <h1>Rang-lista</h1>
     {error && <p role="alert">{error}</p>}
     {!data && !error && <p>Učitavanje rang-liste…</p>}
