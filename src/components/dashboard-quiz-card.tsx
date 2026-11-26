@@ -42,7 +42,7 @@ export default function DashboardQuizCard({ available, authenticated }: { availa
     return () => { current = false; };
   }, [available, authenticated]);
 
-  return <section className="panel">
+  return <section className="panel dashboard-quiz-card">
     <h2>{available ? progress?.heading ?? 'Današnji kviz je spreman' : 'Današnji kviz još nije dostupan'}</h2>
     <p>{available ? progress?.description ?? 'Odigraj osam izazova u dva poluvremena. Tvoj gostujući napredak čuva se do sutra i možeš ga preneti na nalog.' : 'Novi dnevni set još nije objavljen.'}</p>
     {available && <Link className="button" href="/kviz">{progress?.button ?? 'Pokreni današnji kviz →'}</Link>}

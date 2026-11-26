@@ -33,12 +33,12 @@ export default async function DashboardHome({ user }: { user: { id: string; name
     <p className="eyebrow">{today} · DNEVNI KVIZ</p>
     <h1>Danas ideš do miliona.</h1>
     <p>Osam izazova u dva poluvremena. Igraj bez naloga i sačuvaj napredak u ovom pregledaču do sutra.</p>
+    <DashboardQuizCard available={Boolean(set)} authenticated={Boolean(user)} />
     <div className="cards">
       <Link className="home-card" href="/banka"><p>MOJA BANKA</p><strong>{user ? `${money(total)} RSD` : 'Otvori banku'}</strong><small>{user ? 'virtuelni dinari' : 'potrebna je prijava'}</small></Link>
       <Link className="home-card" href="/kolekcija"><p>MOJA KOLEKCIJA</p><strong>{user ? current?.tierName ?? 'Još nema predmeta' : 'Otvori kolekciju'}</strong><small>{user ? season?.collectibleTheme ?? 'Osvojeni predmeti' : 'potrebna je prijava'}</small></Link>
       <Link className="home-card" href="/rang-lista"><p>RANG-LISTA</p><strong>{rank ? `#${rank}` : 'Pogledaj plasman'}</strong><small>{user && season ? 'tvoj mesečni plasman' : 'mesečni plasman igrača'}</small></Link>
     </div>
-    <DashboardQuizCard available={Boolean(set)} authenticated={Boolean(user)} />
     {user && next && <p className="muted">Do nivoa „{next.tierName}” nedostaje {money(next.thresholdAmount - total)} RSD.</p>}
     </main>
     <footer className="site-footer"><Link href="/pravila">Pravila igre</Link></footer>
