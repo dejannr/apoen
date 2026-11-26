@@ -123,6 +123,7 @@ export default function AttemptPage({ params }: { params: Promise<{ attemptId: s
   const config = snapshot.publicConfig;
   const displayedOptions = snapshot.options.filter((option) => mode !== 'ORDER' || !snapshot.acceptedOptionIds.includes(option.id));
   return <main>
+    <Link href="/">← Početna</Link>
     <div className="gamehead"><span>{snapshot.title}</span><strong className={seconds < 10 ? 'urgent' : ''}>{Math.floor(seconds / 60)}:{String(seconds % 60).padStart(2, '0')}</strong></div>
     <section className="panel">
       <p className="eyebrow">{gameModeLabel(mode)}</p>
