@@ -165,12 +165,19 @@ export default function AttemptPage({ params }: { params: Promise<{ attemptId: s
         const chosen = picked.includes(option.id) || snapshot.acceptedOptionIds.includes(option.id);
         return <button disabled={busy} className={chosen ? 'option chosen' : 'option'} key={option.id} onClick={() => {
           if (mode === 'ORDER') void act('PICK_NEXT', { optionId: option.id });
-          else if (mode !== 'HIGH_LOW') setPicked(chosen ? picked.filter((id) => id !== option.id) : [...picked, option.id]);
+          else if (mode !== 'HIGH_LOW') {
+            if (mode === 'EDGE' && !chosen && picked.length >= Number(config.pickCount)) {
+              setMessage(`Možeš da izabereš tačno ${String(config.pickCount)} odgovora.`);
+              return;
+            }
+            setMessage('');
+            setPicked(chosen ? picked.filter((id) => id !== option.id) : [...picked, option.id]);
+          }
         }}>{option.label}</button>;
       })}</div>
       {mode === 'HIGH_LOW' && <div className="controls"><button disabled={busy} onClick={() => void act('COMPARE', { choice: 'GREATER', step: snapshot.step })}>Veće</button><button disabled={busy} onClick={() => void act('COMPARE', { choice: 'LESS', step: snapshot.step })}>Manje</button></div>}
       {mode === 'EDGE' && <p>Izabrano {picked.length} / {String(config.pickCount)}</p>}
-      {(mode === 'EDGE' || mode === 'CONFIDENCE') && <button className="button" disabled={busy || picked.length === 0} onClick={() => void act('SUBMIT_SELECTION', { optionIds: picked })}>Potvrdi odgovor</button>}
+      {(mode === 'EDGE' || mode === 'CONFIDENCE') && <button className="button" disabled={busy || picked.length === 0 || (mode === 'EDGE' && picked.length !== Number(config.pickCount))} onClick={() => void act('SUBMIT_SELECTION', { optionIds: picked })}>Potvrdi odgovor</button>}
       {(mode === 'ORDER' || mode === 'HIGH_LOW') && <div className="controls"><span>{snapshot.step} tačnih · potencijalno {new Intl.NumberFormat('sr-Latn-RS').format(snapshot.potentialReward)} RSD</span><button disabled={busy || !snapshot.canCashOut} onClick={() => void act('CASH_OUT')}>Uzmi novac</button></div>}
       <button className="quiet" disabled={busy} onClick={() => { setLeaveDestination(null); setLeaveWarning(true); }}>Odustani</button>
       {message && <p role="alert">{message}</p>}
