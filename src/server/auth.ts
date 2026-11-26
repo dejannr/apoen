@@ -18,7 +18,7 @@ export const authOptions: NextAuthOptions = {
       if (!parsed.success||!ipLimit.allowed) return null;
       const email=parsed.data.email.trim().toLowerCase(),accountLimit=await rateLimitStatus('LOGIN_ACCOUNT',email,5,15*60_000);if(!accountLimit.allowed)return null;
       const user = await db.user.findUnique({ where: { email } });
-      if (!user || user.status !== 'ACTIVE' || !(await argon2.verify(user.passwordHash, parsed.data.password))) { await Promise.all([rateLimit('LOGIN_IP',ip,30,15*60_000),rateLimit('LOGIN_ACCOUNT',email,5,15*60_000)]);return null; }
+      if (!user || user.isGuest || user.status !== 'ACTIVE' || !(await argon2.verify(user.passwordHash, parsed.data.password))) { await Promise.all([rateLimit('LOGIN_IP',ip,30,15*60_000),rateLimit('LOGIN_ACCOUNT',email,5,15*60_000)]);return null; }
       await db.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
       return { id: user.id, name: user.nickname, email: user.email, role: user.role, sessionVersion: user.sessionVersion } as never;
     },

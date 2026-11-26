@@ -73,6 +73,9 @@ model User {
   role           UserRole             @default(PLAYER)
   status         UserStatus           @default(ACTIVE)
   sessionVersion Int                  @default(0) @map("session_version")
+  isGuest        Boolean              @default(false) @map("is_guest")
+  guestTokenHash String?              @unique @map("guest_token_hash")
+  guestPlayDate  DateTime?            @map("guest_play_date") @db.Date
   createdAt      DateTime             @default(now()) @map("created_at") @db.Timestamptz
   updatedAt      DateTime             @updatedAt @map("updated_at") @db.Timestamptz
   lastLoginAt    DateTime?            @map("last_login_at") @db.Timestamptz
@@ -86,6 +89,7 @@ model User {
   assets         MediaAsset[]
   audit          AdminAudit[]
 
+  @@index([isGuest, guestPlayDate])
   @@map("users")
 }
 

@@ -1,6 +1,5 @@
-import { getServerSession } from 'next-auth';
 import { NextResponse } from 'next/server';
-import { authOptions } from '@/server/auth';
+import { resolvePlayIdentity } from '@/server/guest-play';
 import { belgradeDate, monthBounds } from '@/server/calendar';
 import { db } from '@/server/db';
 import { attemptSnapshot } from '@/server/game';
@@ -28,10 +27,15 @@ async function loadToday(userId: string, day: string, year: number, month: numbe
   });
 }
 
-export async function GET() {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) return NextResponse.json({ error: 'UNAUTHENTICATED' }, { status: 401 });
-  const userId = (session.user as { id: string }).id;
+export async function GET(request: Request) {
+  return getTodayResponse(request);
+}
+
+async function getTodayResponse(request?: Request) {
+  let identity;
+  try { identity = await resolvePlayIdentity(request ?? new Request('http://localhost')); }
+  catch (error) { const code = (error as Error).message; return NextResponse.json({ error: code }, { status: code === 'UNAUTHENTICATED' ? 401 : 410 }); }
+  const userId = identity.userId;
   const day = belgradeDate();
   const { year, month } = monthBounds();
   let season = await loadToday(userId, day, year, month);

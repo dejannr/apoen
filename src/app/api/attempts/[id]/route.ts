@@ -1,2 +1,12 @@
-import {getServerSession}from'next-auth';import{NextResponse}from'next/server';import{authOptions}from'@/server/auth';import{attemptSnapshot}from'@/server/game';
-export async function GET(_req:Request,{params}:{params:Promise<{id:string}>}){const s=await getServerSession(authOptions);if(!s?.user)return NextResponse.json({error:'UNAUTHENTICATED'},{status:401});try{return NextResponse.json(await attemptSnapshot((s.user as{id:string}).id,(await params).id),{headers:{'Cache-Control':'private, no-store'}})}catch{return NextResponse.json({error:'NOT_FOUND'},{status:404})}}
+import { NextResponse } from 'next/server';
+import { attemptSnapshot } from '@/server/game';
+import { resolvePlayIdentity } from '@/server/guest-play';
+
+export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  let identity;
+  try { identity = await resolvePlayIdentity(request); }
+  catch (error) { const code = (error as Error).message; return NextResponse.json({ error: code }, { status: code === 'UNAUTHENTICATED' ? 401 : 410 }); }
+  try {
+    return NextResponse.json(await attemptSnapshot(identity.userId, (await params).id), { headers: { 'Cache-Control': 'private, no-store' } });
+  } catch { return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 }); }
+}

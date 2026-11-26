@@ -22,20 +22,20 @@ export async function GET(request: NextRequest) {
         SELECT t.user_id, u.nickname, t.total_amount,
           RANK() OVER (ORDER BY t.total_amount DESC)::int AS rank
         FROM season_totals t JOIN users u ON u.id = t.user_id
-        WHERE t.season_id = ${season.id}::uuid AND u.status = 'ACTIVE'
+        WHERE t.season_id = ${season.id}::uuid AND u.status = 'ACTIVE' AND u.is_guest = false
         ORDER BY t.total_amount DESC, u.nickname_key ASC
         LIMIT ${PAGE_SIZE} OFFSET ${offset}`,
       tx.$queryRaw<{ total: number }[]>`
         SELECT COUNT(*)::int AS total FROM season_totals t JOIN users u ON u.id=t.user_id
-        WHERE t.season_id=${season.id}::uuid AND u.status='ACTIVE'`,
+        WHERE t.season_id=${season.id}::uuid AND u.status='ACTIVE' AND u.is_guest=false`,
       tx.$queryRaw<{ nickname: string; total_amount: number; rank: number; next_amount: number | null }[]>`
         SELECT u.nickname, t.total_amount,
           (SELECT COUNT(*)::int + 1 FROM season_totals higher JOIN users hu ON hu.id=higher.user_id
-            WHERE higher.season_id=t.season_id AND hu.status='ACTIVE' AND higher.total_amount>t.total_amount) AS rank,
+            WHERE higher.season_id=t.season_id AND hu.status='ACTIVE' AND hu.is_guest=false AND higher.total_amount>t.total_amount) AS rank,
           (SELECT MIN(higher.total_amount)::int FROM season_totals higher JOIN users hu ON hu.id=higher.user_id
-            WHERE higher.season_id=t.season_id AND hu.status='ACTIVE' AND higher.total_amount>t.total_amount) AS next_amount
+            WHERE higher.season_id=t.season_id AND hu.status='ACTIVE' AND hu.is_guest=false AND higher.total_amount>t.total_amount) AS next_amount
         FROM season_totals t JOIN users u ON u.id=t.user_id
-        WHERE t.season_id=${season.id}::uuid AND t.user_id=${userId}::uuid AND u.status='ACTIVE'`,
+        WHERE t.season_id=${season.id}::uuid AND t.user_id=${userId}::uuid AND u.status='ACTIVE' AND u.is_guest=false`,
       tx.$queryRaw<{ as_of: Date }[]>`SELECT transaction_timestamp() AS as_of`,
     ]);
     const own = ownRows[0] ?? null;

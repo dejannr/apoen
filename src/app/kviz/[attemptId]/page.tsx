@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import RewardReveal from '@/components/reward-reveal';
+import { guestHeaders } from '@/client/guest-session';
 
 type Snapshot = {
   attemptId: string;
@@ -37,7 +38,7 @@ export default function AttemptPage({ params }: { params: Promise<{ attemptId: s
     void params.then(({ attemptId }) => {
       if (!active) return;
       setId(attemptId);
-      return fetch(`/api/attempts/${attemptId}`, { cache: 'no-store' }).then((response) => response.json()).then((data) => {
+      return fetch(`/api/attempts/${attemptId}`, { headers: guestHeaders(), cache: 'no-store' }).then((response) => response.json()).then((data) => {
         if (active) setSnapshot(data);
       });
     });
@@ -58,7 +59,7 @@ export default function AttemptPage({ params }: { params: Promise<{ attemptId: s
       setSeconds(remaining);
       if (remaining === 0 && attemptStatus === 'ACTIVE' && id && !timeoutRequested.current) {
         timeoutRequested.current = true;
-        void fetch(`/api/attempts/${id}`, { cache: 'no-store' })
+        void fetch(`/api/attempts/${id}`, { headers: guestHeaders(), cache: 'no-store' })
           .then((response) => response.json())
           .then((data) => setSnapshot(data))
           .catch(() => setMessage('Veza je prekinuta. Pokušaj osvežavanje; serverski tajmer se nastavlja.'));
@@ -79,20 +80,20 @@ export default function AttemptPage({ params }: { params: Promise<{ attemptId: s
     try {
       const response = await fetch(`/api/attempts/${id}/action`, {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
+        headers: { 'content-type': 'application/json', ...guestHeaders() },
         body: JSON.stringify({ requestId: crypto.randomUUID(), expectedRevision: snapshot.revision, kind, payload }),
       });
       const data = await response.json();
       if (!response.ok) {
         setMessage(data.error ?? 'Greška');
         if (response.status === 409) {
-          const fresh = await fetch(`/api/attempts/${id}`, { cache: 'no-store' }).then((result) => result.json());
+          const fresh = await fetch(`/api/attempts/${id}`, { headers: guestHeaders(), cache: 'no-store' }).then((result) => result.json());
           setSnapshot(fresh);
         }
         return;
       }
       if (data.status === 'ACTIVE') {
-        const fresh = await fetch(`/api/attempts/${id}`, { cache: 'no-store' }).then((result) => result.json());
+        const fresh = await fetch(`/api/attempts/${id}`, { headers: guestHeaders(), cache: 'no-store' }).then((result) => result.json());
         setSnapshot(fresh);
         setPicked([]);
       } else {

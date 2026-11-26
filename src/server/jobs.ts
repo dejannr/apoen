@@ -89,8 +89,9 @@ export async function closeDueSeasons(client: PrismaClient = db) {
           UPDATE season_totals t
           SET final_rank = r.rank
           FROM (
-            SELECT user_id, RANK() OVER (ORDER BY total_amount DESC)::int AS rank
-            FROM season_totals WHERE season_id = ${seasonId}::uuid
+            SELECT t.user_id, RANK() OVER (ORDER BY t.total_amount DESC)::int AS rank
+            FROM season_totals t JOIN users u ON u.id=t.user_id
+            WHERE t.season_id = ${seasonId}::uuid AND u.is_guest=false
           ) r
           WHERE t.season_id = ${seasonId}::uuid AND t.user_id = r.user_id
         `;
@@ -103,6 +104,7 @@ export async function closeDueSeasons(client: PrismaClient = db) {
             WHERE season_id = t.season_id AND threshold_amount <= t.total_amount
             ORDER BY threshold_amount DESC LIMIT 1
           ) tier
+          JOIN users u ON u.id=t.user_id AND u.is_guest=false
           WHERE t.season_id = ${seasonId}::uuid AND t.completed_count > 0
           ON CONFLICT(user_id, season_id) DO NOTHING
         `;
