@@ -29,7 +29,7 @@ async function assertSeasonLedger(client: PrismaClient | Prisma.TransactionClien
       SELECT user_id,
              COUNT(*) FILTER (WHERE status <> 'ACTIVE')::int AS completed_attempts,
              COUNT(*) FILTER (WHERE status = 'ACTIVE')::int AS active_attempts,
-             COALESCE(SUM(final_reward) FILTER (WHERE status <> 'ACTIVE'), 0)::bigint AS attempt_amount
+             COALESCE(SUM(final_reward * CASE WHEN joker_used THEN 2 ELSE 1 END) FILTER (WHERE status <> 'ACTIVE'), 0)::bigint AS attempt_amount
       FROM attempts
       WHERE season_id = ${seasonId}::uuid
       GROUP BY user_id
@@ -50,15 +50,15 @@ async function assertSeasonLedger(client: PrismaClient | Prisma.TransactionClien
     LEFT JOIN season_totals t ON t.user_id = users.user_id AND t.season_id = ${seasonId}::uuid
     WHERE COALESCE(a.active_attempts, 0) <> 0
        OR COALESCE(a.completed_attempts, 0) <> COALESCE(t.completed_count, 0)
-       OR COALESCE(a.attempt_amount, 0) <> COALESCE(t.total_amount, 0)
-       OR COALESCE(a.attempt_amount, 0) <> COALESCE((SELECT SUM(b.denomination)::bigint FROM banknotes b WHERE b.user_id = users.user_id AND b.season_id = ${seasonId}::uuid), 0)
+       OR COALESCE(a.attempt_amount, 0) + COALESCE((SELECT SUM(g.reward)::bigint FROM daily_puzzle_guesses g WHERE g.user_id=users.user_id AND g.season_id=${seasonId}::uuid),0) <> COALESCE(t.total_amount, 0)
+       OR COALESCE(a.attempt_amount, 0) + COALESCE((SELECT SUM(g.reward)::bigint FROM daily_puzzle_guesses g WHERE g.user_id=users.user_id AND g.season_id=${seasonId}::uuid),0) <> COALESCE((SELECT SUM(b.denomination)::bigint FROM banknotes b WHERE b.user_id = users.user_id AND b.season_id = ${seasonId}::uuid), 0)
        OR EXISTS (
          SELECT 1 FROM attempts attempt
-         LEFT JOIN banknotes note ON note.attempt_id = attempt.id
          WHERE attempt.user_id = users.user_id AND attempt.season_id = ${seasonId}::uuid
-           AND ((attempt.final_reward = 0 AND note.id IS NOT NULL)
-             OR (attempt.final_reward > 0 AND (note.id IS NULL OR note.denomination <> attempt.final_reward OR note.user_id <> attempt.user_id OR note.season_id <> attempt.season_id)))
+           AND ((SELECT count(*) FROM banknotes note WHERE note.attempt_id=attempt.id) <> CASE WHEN attempt.final_reward=0 THEN 0 WHEN attempt.joker_used THEN 2 ELSE 1 END
+             OR EXISTS(SELECT 1 FROM banknotes note WHERE note.attempt_id=attempt.id AND (note.denomination<>attempt.final_reward OR note.user_id<>attempt.user_id OR note.season_id<>attempt.season_id)))
        )
+       OR EXISTS (SELECT 1 FROM daily_puzzle_guesses g WHERE g.user_id=users.user_id AND g.season_id=${seasonId}::uuid AND ((g.reward=0 AND EXISTS(SELECT 1 FROM banknotes b WHERE b.puzzle_guess_id=g.id)) OR (g.reward>0 AND NOT EXISTS(SELECT 1 FROM banknotes b WHERE b.puzzle_guess_id=g.id AND b.denomination=g.reward AND b.user_id=g.user_id AND b.season_id=g.season_id))))
   `;
   if (mismatches.length) throw new Error(`LEDGER_RECONCILIATION_FAILED:${mismatches.map((row) => row.user_id).join(',')}`);
 }

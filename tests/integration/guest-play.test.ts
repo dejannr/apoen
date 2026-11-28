@@ -41,9 +41,9 @@ describe('guest daily play', () => {
 
     const claim = await claimGuestProgress(session.token, account.id, db);
     expect(claim).toEqual({ status: 'TRANSFERRED', transferred: 1 });
-    const transferred = await db.attempt.findUniqueOrThrow({ where: { id: attempt.attempt.id }, include: { banknote: true } });
+    const transferred = await db.attempt.findUniqueOrThrow({ where: { id: attempt.attempt.id }, include: { banknotes: true } });
     expect(transferred.userId).toBe(account.id);
-    expect(transferred.banknote?.userId).toBe(account.id);
+    expect(transferred.banknotes[0]?.userId).toBe(account.id);
     expect(await db.seasonTotal.findUnique({ where: { userId_seasonId: { userId: account.id, seasonId: challenge.seasonId } } })).toMatchObject({ totalAmount: 5000, completedCount: 1 });
   });
 

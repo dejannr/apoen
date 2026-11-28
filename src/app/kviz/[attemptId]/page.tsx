@@ -22,7 +22,8 @@ type Snapshot = {
   potentialReward: number;
   canCashOut: boolean;
   rewardLadder: { label: string; reward: number }[];
-  result?: { reward: number; reason: string; finishedAt: string | null } | null;
+  jokerUsed?: boolean;
+  result?: { reward: number; payout: number; jokerUsed: boolean; reason: string; finishedAt: string | null } | null;
 };
 
 export default function AttemptPage({ params }: { params: Promise<{ attemptId: string }> }) {
@@ -143,8 +144,9 @@ export default function AttemptPage({ params }: { params: Promise<{ attemptId: s
   if (snapshot.status !== 'ACTIVE') return <main>
     <section className="panel result-card">
       <p className="eyebrow">REZULTAT</p>
-      <h1>{new Intl.NumberFormat('sr-Latn-RS').format(snapshot.result?.reward ?? 0)} RSD</h1>
-      <RewardReveal amount={snapshot.result?.reward ?? 0} />
+      <h1>{new Intl.NumberFormat('sr-Latn-RS').format(snapshot.result?.payout ?? snapshot.result?.reward ?? 0)} RSD</h1>
+      {snapshot.result?.jokerUsed && <p>Džoker je udvostručio nagradu u dve iste novčanice.</p>}
+      <RewardReveal amount={snapshot.result?.reward ?? 0} count={snapshot.result?.jokerUsed ? 2 : 1} />
       <p>{attemptReasonLabel(snapshot.result?.reason)}</p>
       <Link className="button" href="/kviz">Nastavi na sledeće pitanje →</Link>
     </section>

@@ -52,14 +52,21 @@ export async function claimGuestProgress(token: string, userId: string, client: 
       where: { userId: guest.id, challenge: { dailySet: { playDate: dateValue(day) } } },
       select: { id: true, seasonId: true, finalReward: true },
     });
-    const accountHasPlayed = await tx.attempt.count({ where: { userId, challenge: { dailySet: { playDate: dateValue(day) } } } });
+    const accountHasPlayed = await tx.attempt.count({ where: { userId, challenge: { dailySet: { playDate: dateValue(day) } } } })
+      + await tx.dailyPuzzleGuess.count({ where: { userId, dailySet: { playDate: dateValue(day) } } })
+      + await tx.dailyPlayerState.count({ where: { userId, dailySet: { playDate: dateValue(day) } } });
     if (accountHasPlayed) {
       await tx.user.update({ where: { id: guest.id }, data: { status: 'DISABLED', guestTokenHash: null } });
       return { status: 'ALREADY_PLAYED' as const, transferred: 0 };
     }
-    if (guestAttempts.length) {
+    const guestPuzzleGuesses = await tx.dailyPuzzleGuess.findMany({ where: { userId: guest.id, dailySet: { playDate: dateValue(day) } }, select: { id: true, seasonId: true } });
+    const guestStates = await tx.dailyPlayerState.findMany({ where: { userId: guest.id, dailySet: { playDate: dateValue(day) } }, select: { dailySetId: true } });
+    if (guestAttempts.length || guestPuzzleGuesses.length || guestStates.length) {
       await tx.$queryRaw`SELECT set_config('apoen.allow_guest_transfer', 'on', true)`;
       await tx.attempt.updateMany({ where: { id: { in: guestAttempts.map((a) => a.id) }, userId: guest.id }, data: { userId } });
+      await tx.dailyPuzzleGuess.updateMany({ where: { id: { in: guestPuzzleGuesses.map((g) => g.id) }, userId: guest.id }, data: { userId } });
+      await tx.dailyPlayerState.updateMany({ where: { userId: guest.id, dailySetId: { in: guestStates.map((state) => state.dailySetId) } }, data: { userId } });
+      await tx.banknote.updateMany({ where: { userId: guest.id }, data: { userId } });
       const totals = await tx.seasonTotal.findMany({ where: { userId: guest.id } });
       for (const total of totals) {
         await tx.seasonTotal.upsert({

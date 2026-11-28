@@ -18,9 +18,12 @@ async function loadToday(userId: string, day: string, year: number, month: numbe
             select: {
               id: true, position: true, half: true, mode: true, title: true,
               category: { select: { name: true } },
-              attempts: { where: { userId }, select: { id: true, status: true, finalReward: true, finishedAt: true } },
+              attempts: { where: { userId }, select: { id: true, status: true, finalReward: true, finishedAt: true, jokerUsed: true } },
             },
           },
+          puzzle: { select: { assetId: true } },
+          playerStates: { where: { userId }, select: { jokerPosition: true, jokerUsedAt: true } },
+          puzzleGuesses: { where: { userId }, select: { isCorrect: true, reward: true, revealedCount: true } },
         },
       },
     },
@@ -54,6 +57,9 @@ async function getTodayResponse(request?: Request) {
     return Boolean(attempt && attempt.status !== 'ACTIVE');
   };
   const secondHalfStarted = challenges.some((challenge) => challenge.position > 4 && challenge.attempts.length > 0);
+  const jokerState = set?.playerStates[0] ?? null;
+  const puzzleGuess = set?.puzzleGuesses[0] ?? null;
+  const revealedCount = challenges.filter((challenge) => challenge.attempts[0] && challenge.attempts[0].status !== 'ACTIVE').length;
   let state = 'UNAVAILABLE';
   if (set && challenges.length === 8) {
     if ([1, 2, 3, 4, 5, 6, 7, 8].every(terminal)) state = 'COMPLETED';
@@ -77,8 +83,16 @@ async function getTodayResponse(request?: Request) {
         category: challenge.category.name,
         status: challenge.attempts[0]?.status ?? 'NOT_STARTED',
         attemptId: challenge.attempts[0]?.id ?? null,
-        reward: challenge.attempts[0]?.finalReward ?? null,
+        reward: challenge.attempts[0]?.finalReward === null || challenge.attempts[0]?.finalReward === undefined ? null : challenge.attempts[0].finalReward * (challenge.attempts[0].jokerUsed ? 2 : 1),
+        jokerUsed: challenge.attempts[0]?.jokerUsed ?? false,
       })),
     })),
+    joker: { position: jokerState?.jokerPosition ?? null, used: Boolean(jokerState?.jokerUsedAt) },
+    puzzle: set?.puzzle ? {
+      imageUrl: `/api/assets/${set.puzzle.assetId}`,
+      revealedCount,
+      guessUsed: Boolean(puzzleGuess),
+      result: puzzleGuess ? { correct: puzzleGuess.isCorrect, reward: puzzleGuess.reward, revealedCount: puzzleGuess.revealedCount } : null,
+    } : null,
   }, { headers: { 'Cache-Control': 'private, no-store' } });
 }

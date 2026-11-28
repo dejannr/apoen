@@ -19,6 +19,7 @@ export async function GET() {
         select: {
           denomination: true,
           attempt: { select: { challenge: { select: { dailySet: { select: { playDate: true } } } } } },
+          puzzleGuess: { select: { dailySet: { select: { playDate: true } } } },
         },
       },
     },
@@ -28,7 +29,8 @@ export async function GET() {
     const byDate = new Map<string, { totalAmount: number; noteCount: number }>();
     for (const note of season.banknotes) {
       notesByValue.set(note.denomination, (notesByValue.get(note.denomination) ?? 0) + 1);
-      const date = note.attempt.challenge.dailySet.playDate.toISOString().slice(0, 10);
+      const date = (note.attempt?.challenge.dailySet.playDate ?? note.puzzleGuess?.dailySet.playDate)?.toISOString().slice(0, 10);
+      if (!date) continue;
       const summary = byDate.get(date) ?? { totalAmount: 0, noteCount: 0 };
       summary.totalAmount += note.denomination;
       summary.noteCount++;

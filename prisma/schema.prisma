@@ -65,31 +65,33 @@ enum ActionKind {
 }
 
 model User {
-  id             String               @id @default(uuid()) @db.Uuid
-  email          String               @unique
-  nickname       String
-  nicknameKey    String               @unique @map("nickname_key")
-  passwordHash   String               @map("password_hash")
-  role           UserRole             @default(PLAYER)
-  status         UserStatus           @default(ACTIVE)
-  sessionVersion Int                  @default(0) @map("session_version")
-  isGuest        Boolean              @default(false) @map("is_guest")
-  guestTokenHash String?              @unique @map("guest_token_hash")
-  guestPlayDate  DateTime?            @map("guest_play_date") @db.Date
-  createdAt      DateTime             @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt      DateTime             @updatedAt @map("updated_at") @db.Timestamptz
-  lastLoginAt    DateTime?            @map("last_login_at") @db.Timestamptz
-  resetTokens    PasswordResetToken[]
-  attempts       Attempt[]
-  totals         SeasonTotal[]
-  collectibles   UserCollectible[]
-  banknotes      Banknote[]
-  seasons        Season[]
-  sets           DailySet[]
-  assets         MediaAsset[]
-  audit          AdminAudit[]
+  id                String               @id @default(uuid()) @db.Uuid
+  email             String               @unique
+  nickname          String
+  nicknameKey       String               @unique @map("nickname_key")
+  passwordHash      String               @map("password_hash")
+  role              UserRole             @default(PLAYER)
+  status            UserStatus           @default(ACTIVE)
+  sessionVersion    Int                  @default(0) @map("session_version")
+  isGuest           Boolean              @default(false) @map("is_guest")
+  guestTokenHash    String?              @unique @map("guest_token_hash")
+  guestPlayDate     DateTime?            @map("guest_play_date") @db.Date
+  createdAt         DateTime             @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt         DateTime             @updatedAt @map("updated_at") @db.Timestamptz
+  lastLoginAt       DateTime?            @map("last_login_at") @db.Timestamptz
+  resetTokens       PasswordResetToken[]
+  attempts          Attempt[]
+  totals            SeasonTotal[]
+  collectibles      UserCollectible[]
+  banknotes         Banknote[]
+  seasons           Season[]
+  sets              DailySet[]
+  assets            MediaAsset[]
+  dailyPlayerStates DailyPlayerState[]
+  puzzleGuesses     DailyPuzzleGuess[]
+  audit             AdminAudit[]
 
-  @@index([isGuest, guestPlayDate])
+  @@index([isGuest, guestPlayDate], map: "users_guest_play_date_idx")
   @@map("users")
 }
 
@@ -119,41 +121,43 @@ model RateLimit {
 }
 
 model Season {
-  id               String            @id @default(uuid()) @db.Uuid
+  id               String             @id @default(uuid()) @db.Uuid
   year             Int
   month            Int
-  startsAt         DateTime          @map("starts_at") @db.Timestamptz
-  endsAt           DateTime          @map("ends_at") @db.Timestamptz
-  status           SeasonStatus      @default(DRAFT)
-  collectibleTheme String            @map("collectible_theme")
-  createdBy        String            @map("created_by") @db.Uuid
-  createdAt        DateTime          @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt        DateTime          @updatedAt @map("updated_at") @db.Timestamptz
-  publishedAt      DateTime?         @map("published_at") @db.Timestamptz
-  closedAt         DateTime?         @map("closed_at") @db.Timestamptz
-  creator          User              @relation(fields: [createdBy], references: [id], onDelete: Restrict)
+  startsAt         DateTime           @map("starts_at") @db.Timestamptz
+  endsAt           DateTime           @map("ends_at") @db.Timestamptz
+  status           SeasonStatus       @default(DRAFT)
+  collectibleTheme String             @map("collectible_theme")
+  createdBy        String             @map("created_by") @db.Uuid
+  createdAt        DateTime           @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt        DateTime           @updatedAt @map("updated_at") @db.Timestamptz
+  publishedAt      DateTime?          @map("published_at") @db.Timestamptz
+  closedAt         DateTime?          @map("closed_at") @db.Timestamptz
+  creator          User               @relation(fields: [createdBy], references: [id], onDelete: Restrict)
   tiers            CollectibleTier[]
   sets             DailySet[]
   totals           SeasonTotal[]
   collectibles     UserCollectible[]
   banknotes        Banknote[]
+  puzzleGuesses    DailyPuzzleGuess[]
 
   @@unique([year, month])
   @@map("seasons")
 }
 
 model MediaAsset {
-  id        String            @id @default(uuid()) @db.Uuid
-  sha256    String            @unique
-  mimeType  String            @map("mime_type")
-  bytes     Bytes
-  byteSize  Int               @map("byte_size")
-  widthPx   Int               @map("width_px")
-  heightPx  Int               @map("height_px")
-  createdBy String            @map("created_by") @db.Uuid
-  createdAt DateTime          @default(now()) @map("created_at") @db.Timestamptz
-  creator   User              @relation(fields: [createdBy], references: [id], onDelete: Restrict)
-  tiers     CollectibleTier[]
+  id           String            @id @default(uuid()) @db.Uuid
+  sha256       String            @unique
+  mimeType     String            @map("mime_type")
+  bytes        Bytes
+  byteSize     Int               @map("byte_size")
+  widthPx      Int               @map("width_px")
+  heightPx     Int               @map("height_px")
+  createdBy    String            @map("created_by") @db.Uuid
+  createdAt    DateTime          @default(now()) @map("created_at") @db.Timestamptz
+  creator      User              @relation(fields: [createdBy], references: [id], onDelete: Restrict)
+  tiers        CollectibleTier[]
+  dailyPuzzles DailyPuzzle[]
 
   @@map("media_assets")
 }
@@ -179,17 +183,20 @@ model CollectibleTier {
 }
 
 model DailySet {
-  id          String      @id @default(uuid()) @db.Uuid
-  seasonId    String      @map("season_id") @db.Uuid
-  playDate    DateTime    @unique @map("play_date") @db.Date
-  status      SetStatus   @default(DRAFT)
-  createdBy   String      @map("created_by") @db.Uuid
-  createdAt   DateTime    @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt   DateTime    @updatedAt @map("updated_at") @db.Timestamptz
-  publishedAt DateTime?   @map("published_at") @db.Timestamptz
-  creator     User        @relation(fields: [createdBy], references: [id], onDelete: Restrict)
-  season      Season      @relation(fields: [seasonId], references: [id], onDelete: Restrict)
-  challenges  Challenge[]
+  id            String             @id @default(uuid()) @db.Uuid
+  seasonId      String             @map("season_id") @db.Uuid
+  playDate      DateTime           @unique @map("play_date") @db.Date
+  status        SetStatus          @default(DRAFT)
+  createdBy     String             @map("created_by") @db.Uuid
+  createdAt     DateTime           @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt     DateTime           @updatedAt @map("updated_at") @db.Timestamptz
+  publishedAt   DateTime?          @map("published_at") @db.Timestamptz
+  creator       User               @relation(fields: [createdBy], references: [id], onDelete: Restrict)
+  season        Season             @relation(fields: [seasonId], references: [id], onDelete: Restrict)
+  challenges    Challenge[]
+  puzzle        DailyPuzzle?
+  playerStates  DailyPlayerState[]
+  puzzleGuesses DailyPuzzleGuess[]
 
   @@unique([id, seasonId])
   @@index([seasonId, playDate])
@@ -266,11 +273,12 @@ model Attempt {
   stateJson    Json            @map("state_json")
   revision     Int             @default(0)
   finalReward  Int?            @map("final_reward")
+  jokerUsed    Boolean         @default(false) @map("joker_used")
   createdAt    DateTime        @default(now()) @map("created_at") @db.Timestamptz
   user         User            @relation(fields: [userId], references: [id], onDelete: Restrict)
   challenge    Challenge       @relation(fields: [challengeId, seasonId], references: [id, seasonId], onDelete: Restrict)
   actions      AttemptAction[]
-  banknote     Banknote?
+  banknotes    Banknote[]
 
   @@unique([userId, challengeId])
   @@unique([id, userId, seasonId])
@@ -296,19 +304,71 @@ model AttemptAction {
 }
 
 model Banknote {
-  id           String   @id @default(uuid()) @db.Uuid
-  attemptId    String   @unique @map("attempt_id") @db.Uuid
-  userId       String   @map("user_id") @db.Uuid
-  seasonId     String   @map("season_id") @db.Uuid
-  denomination Int
-  earnedAt     DateTime @map("earned_at") @db.Timestamptz
-  attempt      Attempt  @relation(fields: [attemptId, userId, seasonId], references: [id, userId, seasonId], onDelete: Restrict)
-  user         User     @relation(fields: [userId], references: [id], onDelete: Restrict)
-  season       Season   @relation(fields: [seasonId], references: [id], onDelete: Restrict)
+  id            String            @id @default(uuid()) @db.Uuid
+  attemptId     String?           @map("attempt_id") @db.Uuid
+  puzzleGuessId String?           @map("puzzle_guess_id") @db.Uuid
+  issueNo       Int               @default(1) @map("issue_no")
+  userId        String            @map("user_id") @db.Uuid
+  seasonId      String            @map("season_id") @db.Uuid
+  denomination  Int
+  earnedAt      DateTime          @map("earned_at") @db.Timestamptz
+  attempt       Attempt?          @relation(fields: [attemptId], references: [id], onDelete: Restrict)
+  puzzleGuess   DailyPuzzleGuess? @relation(fields: [puzzleGuessId], references: [id], onDelete: Restrict)
+  user          User              @relation(fields: [userId], references: [id], onDelete: Restrict)
+  season        Season            @relation(fields: [seasonId], references: [id], onDelete: Restrict)
 
-  @@unique([attemptId, userId, seasonId])
+  @@unique([attemptId, issueNo])
+  @@unique([puzzleGuessId])
   @@index([userId, seasonId, denomination])
   @@map("banknotes")
+}
+
+model DailyPuzzle {
+  id              String     @id @default(uuid()) @db.Uuid
+  dailySetId      String     @unique @map("daily_set_id") @db.Uuid
+  assetId         String     @unique @map("asset_id") @db.Uuid
+  answer          String
+  acceptedAnswers Json       @default("[]") @map("accepted_answers")
+  createdAt       DateTime   @default(now()) @map("created_at") @db.Timestamptz
+  dailySet        DailySet   @relation(fields: [dailySetId], references: [id], onDelete: Restrict)
+  asset           MediaAsset @relation(fields: [assetId], references: [id], onDelete: Restrict)
+
+  @@map("daily_puzzles")
+}
+
+model DailyPlayerState {
+  userId        String    @map("user_id") @db.Uuid
+  dailySetId    String    @map("daily_set_id") @db.Uuid
+  jokerPosition Int?      @map("joker_position")
+  jokerUsedAt   DateTime? @map("joker_used_at") @db.Timestamptz
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt     DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+  user          User      @relation(fields: [userId], references: [id], onDelete: Restrict)
+  dailySet      DailySet  @relation(fields: [dailySetId], references: [id], onDelete: Restrict)
+
+  @@id([userId, dailySetId])
+  @@map("daily_player_states")
+}
+
+model DailyPuzzleGuess {
+  id            String    @id @default(uuid()) @db.Uuid
+  userId        String    @map("user_id") @db.Uuid
+  dailySetId    String    @map("daily_set_id") @db.Uuid
+  seasonId      String    @map("season_id") @db.Uuid
+  guessText     String    @map("guess_text")
+  isCorrect     Boolean   @map("is_correct")
+  revealedCount Int       @map("revealed_count")
+  reward        Int       @default(0)
+  attemptedAt   DateTime  @default(now()) @map("attempted_at") @db.Timestamptz
+  user          User      @relation(fields: [userId], references: [id], onDelete: Restrict)
+  dailySet      DailySet  @relation(fields: [dailySetId, seasonId], references: [id, seasonId], onDelete: Restrict)
+  season        Season    @relation(fields: [seasonId], references: [id], onDelete: Restrict)
+  banknote      Banknote?
+
+  @@unique([userId, dailySetId])
+  @@unique([id, userId, seasonId])
+  @@index([seasonId])
+  @@map("daily_puzzle_guesses")
 }
 
 model SeasonTotal {

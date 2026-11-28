@@ -24,13 +24,19 @@ export async function GET(request: Request) {
   const notes = await db.banknote.findMany({
     where: { userId, seasonId: season.id },
     orderBy: { earnedAt: 'asc' },
-    select: { denomination: true, earnedAt: true, attempt: { select: { challenge: { select: { dailySet: { select: { playDate: true } } } } } } },
+    select: {
+      denomination: true,
+      earnedAt: true,
+      attempt: { select: { challenge: { select: { dailySet: { select: { playDate: true } } } } } },
+      puzzleGuess: { select: { dailySet: { select: { playDate: true } } } },
+    },
   });
   const counts = new Map<number, number>();
   const days = new Map<string, { totalAmount: number; noteCount: number }>();
   for (const note of notes) {
     counts.set(note.denomination, (counts.get(note.denomination) ?? 0) + 1);
-    const date = note.attempt.challenge.dailySet.playDate.toISOString().slice(0, 10);
+    const date = (note.attempt?.challenge.dailySet.playDate ?? note.puzzleGuess?.dailySet.playDate)?.toISOString().slice(0, 10);
+    if (!date) continue;
     const summary = days.get(date) ?? { totalAmount: 0, noteCount: 0 };
     summary.totalAmount += note.denomination;
     summary.noteCount++;

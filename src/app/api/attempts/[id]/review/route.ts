@@ -21,6 +21,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     playDate,
     status: attempt.status,
     reward: attempt.finalReward,
+    payout: (attempt.finalReward ?? 0) * (attempt.jokerUsed ? 2 : 1),
+    jokerUsed: attempt.jokerUsed,
     mode: challenge.mode,
     title: challenge.title,
     prompt: challenge.prompt,
